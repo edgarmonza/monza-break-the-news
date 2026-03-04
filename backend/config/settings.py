@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     scrape_interval_minutes: int = 15
 
-    # Scheduler Config
-    scheduler_enabled: bool = True
+    # Scheduler Config (disabled by default for serverless; enable for long-running servers)
+    scheduler_enabled: bool = False
     scheduler_interval_hours: int = 2
     scheduler_countries: str = "CO,LATAM"  # Comma-separated ISO codes
 

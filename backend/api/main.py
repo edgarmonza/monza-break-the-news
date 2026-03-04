@@ -69,7 +69,7 @@ _cors_origins = [
     "http://localhost:3003",
     "http://localhost:8000",
 ]
-# Add production frontend URL from env var (e.g. https://monza-news.vercel.app)
+# Add production frontend URL from env var (e.g. https://plural-news.vercel.app)
 _frontend_url = os.getenv("FRONTEND_URL")
 if _frontend_url:
     _cors_origins.append(_frontend_url)
@@ -77,6 +77,7 @@ if _frontend_url:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Allow all Vercel preview deploys
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
