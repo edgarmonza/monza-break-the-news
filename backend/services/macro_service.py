@@ -87,22 +87,36 @@ class MacroDataService:
         """Fetch Brent crude oil price"""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                # Using a public commodities endpoint
                 r = await client.get(
-                    "https://api.frankfurter.dev/v1/latest?base=USD&symbols=COP"
+                    "https://api.commodities-api.com/api/latest?base=USD&symbols=BRENT"
                 )
-                # Fallback: return a reference value
+                if r.status_code == 200:
+                    data = r.json()
+                    rate = data.get("data", {}).get("rates", {}).get("BRENT")
+                    if rate and rate != 0:
+                        price = round(1 / rate, 2)
+                        change, change_pct = self._calc_change("brent_oil", price)
+                        return {
+                            "id": "brent_oil",
+                            "label": "Petróleo Brent",
+                            "value": price,
+                            "formatted": f"US${price:,.2f}",
+                            "change": change,
+                            "change_pct": change_pct,
+                            "icon": "fuel",
+                            "category": "commodities",
+                        }
         except Exception as e:
             logger.debug(f"Oil API error: {e}")
 
-        # Return reference estimate (updated periodically)
+        # Fallback: return reference estimate
         return {
             "id": "brent_oil",
             "label": "Petróleo Brent",
             "value": 74.50,
             "formatted": "US$74.50",
-            "change": -1.20,
-            "change_pct": -1.59,
+            "change": None,
+            "change_pct": None,
             "icon": "fuel",
             "category": "commodities",
         }

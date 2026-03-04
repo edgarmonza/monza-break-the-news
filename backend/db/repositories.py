@@ -32,7 +32,7 @@ class ArticleRepository:
                 'published_at': article.published_at.isoformat() if article.published_at else None,
                 'image_url': article.image_url,
                 'embedding': article.embedding,
-                'scraped_at': article.scraped_at.isoformat()
+                'scraped_at': article.scraped_at.isoformat(),
             }
 
             result = self.client.table('articles').insert(data).execute()
@@ -154,7 +154,8 @@ class ArticleRepository:
             published_at=datetime.fromisoformat(data['published_at']) if data.get('published_at') else None,
             image_url=data.get('image_url'),
             embedding=data.get('embedding'),
-            scraped_at=datetime.fromisoformat(data['scraped_at'])
+            scraped_at=datetime.fromisoformat(data['scraped_at']),
+            country=data.get('country', 'CO'),
         )
 
 
@@ -175,7 +176,8 @@ class ThreadRepository:
                 'display_title': thread.display_title,
                 'summary': thread.summary,
                 'trending_score': thread.trending_score,
-                'article_count': len(thread.article_ids)
+                'article_count': len(thread.article_ids),
+                'image_url': thread.image_url,
             }
 
             result = self.client.table('threads').insert(thread_data).execute()
@@ -261,6 +263,7 @@ class ThreadRepository:
                 articles=articles if include_articles else None,
                 suggested_questions=questions,
                 image_url=thread_result.data.get('image_url'),
+                country=thread_result.data.get('country', 'CO'),
                 created_at=datetime.fromisoformat(thread_result.data['created_at']),
                 updated_at=datetime.fromisoformat(thread_result.data['updated_at'])
             )
@@ -273,7 +276,8 @@ class ThreadRepository:
         self,
         limit: int = 20,
         offset: int = 0,
-        min_score: float = 0.0
+        min_score: float = 0.0,
+        country: str = None,
     ) -> List[Thread]:
         """
         Obtiene feed de threads ordenados por trending_score
@@ -282,18 +286,23 @@ class ThreadRepository:
             limit: Máximo de threads
             offset: Offset para paginación
             min_score: Score mínimo para incluir
+            country: Filtrar por código de país (e.g. 'CO', 'MX')
 
         Returns:
             Lista de threads ordenados
         """
         try:
-            result = self.client.table('threads')\
+            query = self.client.table('threads')\
                 .select('*')\
                 .gte('trending_score', min_score)\
                 .order('trending_score', desc=True)\
                 .order('created_at', desc=True)\
-                .range(offset, offset + limit - 1)\
-                .execute()
+                .range(offset, offset + limit - 1)
+
+            if country:
+                query = query.eq('country', country.upper())
+
+            result = query.execute()
 
             if not result.data:
                 return []

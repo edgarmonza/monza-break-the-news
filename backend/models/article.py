@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 
 class ArticleBase(BaseModel):
-    """Artículo base scraped de medios colombianos"""
+    """Artículo base scraped de medios latinoamericanos"""
     url: str
     title: str
     content: str
@@ -16,6 +16,7 @@ class ArticleBase(BaseModel):
     author: Optional[str] = None
     published_at: Optional[datetime] = None
     image_url: Optional[str] = None
+    country: str = "CO"  # ISO 3166-1 alpha-2
 
 
 class Article(ArticleBase):
@@ -57,6 +58,7 @@ class Thread(BaseModel):
     suggested_questions: List[str] = []
     trending_score: float = 0.0
     image_url: Optional[str] = None
+    country: str = "CO"  # Primary country for this thread
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -81,3 +83,4 @@ class ScrapedArticle(BaseModel):
     image_url: Optional[str] = None
     source: str
     published_at: Optional[datetime] = None
+    country: str = "CO"

@@ -31,7 +31,7 @@ export default function MacroWidget() {
       <div className="space-y-0">
         <WidgetHeader />
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-[52px] border-b border-white/[0.04] animate-pulse" />
+          <div key={i} className="h-[52px] border-b border-ink/[0.05] animate-pulse" />
         ))}
       </div>
     );
@@ -62,21 +62,21 @@ export default function MacroWidget() {
 
 function WidgetHeader() {
   return (
-    <div className="flex items-center gap-2 mb-3 xl:mb-0 xl:px-0 xl:py-3 xl:border-b xl:border-white/[0.06]">
-      <Activity className="w-3.5 h-3.5 text-cyan/50" />
-      <span className="text-[11px] font-medium text-gray-medium uppercase tracking-[0.15em]">
+    <div className="flex items-center gap-2 mb-3 xl:mb-0 xl:px-0 xl:py-3 xl:border-b xl:border-ink/[0.06]">
+      <Activity className="w-3.5 h-3.5 text-ink/40" />
+      <span className="text-[11px] font-medium text-ink/30 uppercase tracking-[0.2em] font-sans">
         Mercados
       </span>
       <div className="flex-1" />
-      <span className="flex items-center gap-1.5 text-[10px] text-gray-medium/50">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      <span className="flex items-center gap-1.5 text-[10px] text-ink/25 font-sans">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
         En vivo
       </span>
     </div>
   );
 }
 
-/* ── Desktop: minimal row style (like Bloomberg terminal) ── */
+/* ── Desktop: minimal row style ── */
 function IndicatorRow({
   indicator, index, isLast,
 }: {
@@ -92,34 +92,29 @@ function IndicatorRow({
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.04 }}
-      className={`flex items-center gap-3 py-3 ${!isLast ? 'border-b border-white/[0.04]' : ''} group hover:bg-white/[0.02] transition-colors -mx-2 px-2 rounded`}
+      className={`flex items-center gap-3 py-3 ${!isLast ? 'border-b border-ink/[0.05]' : ''} group hover:bg-ink/[0.03] transition-colors -mx-2 px-2 rounded`}
     >
       {/* Icon */}
-      <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
-        indicator.category === 'forex' ? 'text-cyan/60' :
-        indicator.category === 'commodities' ? 'text-amber-400/60' :
-        indicator.category === 'crypto' ? 'text-orange-400/60' :
-        'text-purple-accent/60'
-      }`}>
+      <div className="w-6 h-6 rounded-md flex items-center justify-center text-ink/40">
         <Icon className="w-3.5 h-3.5" />
       </div>
 
       {/* Label */}
-      <span className="text-xs text-gray-medium flex-1 min-w-0 truncate">
+      <span className="text-xs text-ink/35 flex-1 min-w-0 truncate font-sans">
         {indicator.label}
       </span>
 
       {/* Value */}
-      <span className="text-sm font-semibold tracking-tight tabular-nums">
+      <span className="text-sm font-semibold tracking-tight tabular-nums font-sans text-ink">
         {indicator.formatted}
       </span>
 
       {/* Change badge */}
       {hasChange && (
-        <div className={`flex items-center gap-0.5 min-w-[52px] justify-end text-[10px] font-medium tabular-nums ${
-          isPositive ? 'text-emerald-400' :
-          isNegative ? 'text-red-400' :
-          'text-gray-medium/60'
+        <div className={`flex items-center gap-0.5 min-w-[52px] justify-end text-[10px] font-medium tabular-nums font-sans ${
+          isPositive ? 'text-emerald-600' :
+          isNegative ? 'text-red-500' :
+          'text-ink/25'
         }`}>
           {isPositive ? (
             <TrendingUp className="w-2.5 h-2.5" />
@@ -146,13 +141,13 @@ function IndicatorChip({ indicator, index }: { indicator: MacroIndicator; index:
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
-      className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]"
+      className="shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-ink/[0.03] border border-ink/[0.06]"
     >
-      <span className="text-[11px] text-gray-medium whitespace-nowrap">{indicator.label}</span>
-      <span className="text-xs font-semibold tabular-nums whitespace-nowrap">{indicator.formatted}</span>
+      <span className="text-[11px] text-ink/35 whitespace-nowrap font-sans">{indicator.label}</span>
+      <span className="text-xs font-semibold tabular-nums whitespace-nowrap font-sans text-ink">{indicator.formatted}</span>
       {hasChange && (
-        <span className={`text-[10px] font-medium tabular-nums whitespace-nowrap ${
-          isPositive ? 'text-emerald-400' : isNegative ? 'text-red-400' : 'text-gray-medium/50'
+        <span className={`text-[10px] font-medium tabular-nums whitespace-nowrap font-sans ${
+          isPositive ? 'text-emerald-600' : isNegative ? 'text-red-500' : 'text-ink/25'
         }`}>
           {isPositive ? '+' : ''}{(indicator.change_pct ?? 0).toFixed(1)}%
         </span>

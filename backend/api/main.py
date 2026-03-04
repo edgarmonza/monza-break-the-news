@@ -1,12 +1,14 @@
 """
-FastAPI Application - Colombia News API
+FastAPI Application - Plural News API (Latin America)
 """
-from fastapi import FastAPI, HTTPException, Depends, Query
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Depends, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 from uuid import UUID
 import logging
+import os
 
 from api.models import (
     ThreadResponse,
@@ -17,32 +19,64 @@ from api.models import (
     HealthResponse
 )
 from db import get_db, Database, ThreadRepository, ArticleRepository
-from services import LLMThreadService, EmbeddingService
+from services.llm_service import LLMThreadService
+from services.embedding_service import EmbeddingService
 from services.macro_service import MacroDataService
+from services.scheduler import (
+    start_scheduler, stop_scheduler,
+    run_scheduled_pipeline, get_scheduler_status,
+    HAS_APSCHEDULER,
+)
+from config.settings import settings as app_settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+# ── Lifespan: start/stop scheduler ──
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    if app_settings.scheduler_enabled and HAS_APSCHEDULER:
+        countries = [c.strip() for c in app_settings.scheduler_countries.split(",")]
+        start_scheduler(
+            interval_hours=app_settings.scheduler_interval_hours,
+            countries=countries,
+        )
+        logger.info(f"Scheduler started: every {app_settings.scheduler_interval_hours}h for {countries}")
+    elif app_settings.scheduler_enabled:
+        logger.warning("Scheduler enabled but APScheduler not installed — running API-only mode")
+    yield
+    # Shutdown
+    stop_scheduler()
+
+
 # Create FastAPI app
 app = FastAPI(
-    title="Colombia News API",
-    description="API for Break The Web clone - Colombian news aggregator with AI",
-    version="1.0.0",
+    title="Plural News API",
+    description="Latin American news aggregator with AI — multi-country, auto-updating",
+    version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS middleware
+_cors_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://localhost:8000",
+]
+# Add production frontend URL from env var (e.g. https://monza-news.vercel.app)
+_frontend_url = os.getenv("FRONTEND_URL")
+if _frontend_url:
+    _cors_origins.append(_frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "http://localhost:3003",
-        "http://localhost:8000",
-        "https://yourfrontend.vercel.app",
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,15 +99,15 @@ async def root():
     """Health check endpoint"""
     return {
         "status": "ok",
-        "message": "Colombia News API is running",
-        "version": "1.0.0"
+        "message": "Plural News API is running",
+        "version": "2.0.0"
     }
 
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check(db: Database = Depends(get_db)):
     """Detailed health check with database status"""
-    db_healthy = await db.health_check()
+    db_healthy = db.health_check()
 
     return {
         "status": "ok" if db_healthy else "degraded",
@@ -87,6 +121,7 @@ async def get_feed(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     min_score: float = Query(default=0.0, ge=0.0, le=1.0),
+    country: Optional[str] = Query(default=None, description="Filter by country code (CO, MX, AR, etc.)"),
     thread_repo: ThreadRepository = Depends(get_thread_repo)
 ):
     """
@@ -96,6 +131,7 @@ async def get_feed(
         limit: Maximum number of threads to return (1-100)
         offset: Offset for pagination
         min_score: Minimum trending score (0.0-1.0)
+        country: Optional country filter (ISO 3166-1 alpha-2)
 
     Returns:
         List of threads with metadata
@@ -104,7 +140,8 @@ async def get_feed(
         threads = await thread_repo.get_feed(
             limit=limit,
             offset=offset,
-            min_score=min_score
+            min_score=min_score,
+            country=country,
         )
 
         return {
@@ -340,6 +377,58 @@ async def get_macro_data():
     except Exception as e:
         logger.error(f"Error fetching macro data: {e}")
         raise HTTPException(status_code=500, detail="Error fetching macro data")
+
+
+# ==================== PIPELINE / SCHEDULER ENDPOINTS ====================
+
+@app.get("/api/pipeline/status")
+async def pipeline_status():
+    """Get current scheduler and pipeline status"""
+    return get_scheduler_status()
+
+
+@app.post("/api/pipeline/trigger")
+async def trigger_pipeline(
+    background_tasks: BackgroundTasks,
+    countries: Optional[str] = Query(default=None, description="Comma-separated country codes (e.g. CO,MX,AR)"),
+):
+    """
+    Manually trigger a pipeline run.
+    Runs in the background so the request returns immediately.
+    """
+    status = get_scheduler_status()
+    if status.get("is_running"):
+        raise HTTPException(status_code=409, detail="Pipeline is already running")
+
+    country_list = [c.strip() for c in countries.split(",")] if countries else None
+
+    background_tasks.add_task(run_scheduled_pipeline, countries=country_list)
+
+    return {
+        "status": "triggered",
+        "countries": country_list or [c.strip() for c in app_settings.scheduler_countries.split(",")],
+        "message": "Pipeline started in background. Check /api/pipeline/status for progress.",
+    }
+
+
+@app.get("/api/pipeline/history")
+async def pipeline_history(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Database = Depends(get_db),
+):
+    """Get recent pipeline run history"""
+    try:
+        result = db.client.table("pipeline_runs")\
+            .select("*")\
+            .order("started_at", desc=True)\
+            .limit(limit)\
+            .execute()
+
+        return {"runs": result.data or [], "count": len(result.data or [])}
+
+    except Exception as e:
+        logger.error(f"Error fetching pipeline history: {e}")
+        return {"runs": [], "count": 0}
 
 
 # Exception handler

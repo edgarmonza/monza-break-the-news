@@ -1,5 +1,10 @@
 """
-Script para ejecutar pipeline completo y guardar resultados en Supabase
+Script para ejecutar pipeline completo y guardar resultados en Supabase.
+
+Usage:
+  python run_pipeline_to_db.py                     # Colombia only
+  python run_pipeline_to_db.py CO MX AR            # Multi-country
+  python run_pipeline_to_db.py CO MX AR CL PE EC   # Full LATAM
 """
 import asyncio
 import sys
@@ -7,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from services import NewsProcessingPipeline
+from services.pipeline import NewsProcessingPipeline
 from db import Database, ArticleRepository, ThreadRepository
 import logging
 
@@ -60,12 +65,16 @@ async def save_threads_to_db(threads, thread_repo):
 
 async def main():
     """Ejecuta pipeline y guarda en BD"""
+    # Parse country arguments
+    countries = sys.argv[1:] if len(sys.argv) > 1 else ["CO"]
+    countries = [c.upper().strip() for c in countries]
+
     print("\n" + "="*70)
-    print("PIPELINE TO DATABASE")
+    print(f"PIPELINE TO DATABASE — Countries: {', '.join(countries)}")
     print("="*70 + "\n")
 
     print("Este script ejecutará:")
-    print("1. Pipeline completo (scraping → clustering → threads)")
+    print(f"1. Pipeline completo para: {', '.join(countries)}")
     print("2. Guardará artículos en Supabase")
     print("3. Guardará threads en Supabase")
     print()
@@ -73,7 +82,7 @@ async def main():
     # Verificar configuración
     try:
         db = Database()
-        healthy = await db.health_check()
+        healthy = db.health_check()
         if not healthy:
             print("❌ Error: No se puede conectar a Supabase")
             print("   Verifica SUPABASE_URL y SUPABASE_KEY en .env")
@@ -99,7 +108,8 @@ async def main():
     try:
         threads = await pipeline.run_full_pipeline(
             max_articles_per_source=20,
-            min_cluster_size=2
+            min_cluster_size=2,
+            countries=countries,
         )
 
         if not threads:

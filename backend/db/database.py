@@ -43,10 +43,9 @@ class Database:
             self._initialize_client()
         return self._client
 
-    async def health_check(self) -> bool:
+    def health_check(self) -> bool:
         """Verifica conexión a la base de datos"""
         try:
-            # Simple query para verificar conectividad
             result = self.client.table('articles').select('id').limit(1).execute()
             return True
         except Exception as e:

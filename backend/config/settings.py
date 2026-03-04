@@ -9,9 +9,11 @@ class Settings(BaseSettings):
     """Configuración global de la aplicación"""
 
     # API Keys
-    openai_api_key: str
-    anthropic_api_key: str
+    google_api_key: str  # Gemini — embeddings (free tier)
+    anthropic_api_key: str  # Claude — thread generation & chat
+    openai_api_key: Optional[str] = None  # No longer required
     unsplash_access_key: Optional[str] = None
+    apify_api_token: Optional[str] = None
 
     # Supabase
     supabase_url: str
@@ -25,13 +27,20 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     scrape_interval_minutes: int = 15
 
+    # Scheduler Config
+    scheduler_enabled: bool = True
+    scheduler_interval_hours: int = 2
+    scheduler_countries: str = "CO,LATAM"  # Comma-separated ISO codes
+
     # Scraping Config
     max_articles_per_source: int = 50
     user_agent: str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    use_apify: bool = True  # Use Apify Google News instead of custom scrapers
+    apify_max_items_per_query: int = 50
 
-    # Embedding Config
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dimensions: int = 1536
+    # Embedding Config (Google Gemini)
+    embedding_model: str = "gemini-embedding-001"
+    embedding_dimensions: int = 1536  # Match existing DB column; Gemini supports up to 3072
 
     # Clustering Config
     clustering_eps: float = 0.3
